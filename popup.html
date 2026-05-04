@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 340px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #14101f;
+      color: #e8e6f0;
+    }
+    .header {
+      background: linear-gradient(135deg, #6a3fbf 0%, #3b1f7a 100%);
+      padding: 18px 20px 16px;
+      text-align: center;
+    }
+    .header img {
+      width: 48px; height: 48px; display: block; margin: 0 auto 6px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.12);
+    }
+    .header h1 { font-size: 14px; color: #fff; font-weight: 700; letter-spacing: .2px; }
+    .header p { font-size: 11px; color: rgba(255,255,255,0.75); margin-top: 2px; }
+
+    .content { padding: 14px 18px 16px; }
+
+    .stats { display: flex; gap: 8px; margin-bottom: 12px; }
+    .stat {
+      flex: 1; display: flex; flex-direction: column;
+      padding: 9px 12px; background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+    }
+    .stat-label { font-size: 10px; color: #8b87a3; text-transform: uppercase; letter-spacing: .5px; }
+    .stat-value { font-size: 18px; font-weight: 700; color: #b69cff; line-height: 1.2; margin-top: 2px; }
+
+    .field { margin-bottom: 10px; }
+    .field label {
+      display: block; font-size: 11px; color: #9d99b3;
+      margin-bottom: 4px; font-weight: 500;
+    }
+    .input {
+      width: 100%; padding: 9px 11px; border-radius: 7px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04); color: #e8e6f0;
+      font-size: 12px; font-family: inherit;
+      transition: border-color 0.15s;
+    }
+    .input:focus { outline: none; border-color: #6a3fbf; }
+    .field-hint {
+      font-size: 10px; color: #6c6883; margin-top: 4px; line-height: 1.4;
+    }
+    .field-hint a { color: #b69cff; text-decoration: none; cursor: pointer; }
+    .field-hint a:hover { text-decoration: underline; }
+
+    .btn {
+      display: flex; align-items: center; justify-content: center;
+      gap: 6px;
+      width: 100%; padding: 11px; border: none;
+      border-radius: 8px; font-size: 13px; font-weight: 600;
+      cursor: pointer; margin-bottom: 7px; transition: all 0.15s; color: white;
+      font-family: inherit;
+    }
+    .btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.1); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: linear-gradient(135deg, #6a3fbf 0%, #3b1f7a 100%); }
+    .btn-secondary { background: rgba(255,255,255,0.08); color: #c9c5dc; }
+    .btn-secondary:hover:not(:disabled) { background: rgba(255,255,255,0.13); color: #fff; }
+    .btn-ghost { background: transparent; color: #6c6883; font-size: 11px; padding: 8px; }
+    .btn-ghost:hover:not(:disabled) { color: #b69cff; }
+    .btn .badge {
+      background: rgba(255,255,255,0.2); border-radius: 10px;
+      padding: 1px 8px; font-size: 11px; font-weight: 700;
+    }
+
+    .row { display: flex; gap: 7px; }
+    .row .btn { margin-bottom: 0; }
+
+    .divider { height: 1px; background: rgba(255,255,255,0.06); margin: 10px 0; }
+    .section-label {
+      font-size: 10px; color: #6c6883; text-transform: uppercase;
+      letter-spacing: .8px; margin: 4px 0 6px;
+    }
+
+    .status {
+      text-align: center; font-size: 11px; color: #6c6883;
+      padding: 8px 0 2px; min-height: 18px;
+    }
+    .footer {
+      text-align: center; padding: 8px; font-size: 10px;
+      color: #3d3a52; border-top: 1px solid rgba(255,255,255,0.05);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="icons/icon-128.png" alt="JM Studio">
+    <h1>Meta Ad Video Downloader</h1>
+    <p>HD/SD video + ad copy from Ad Library</p>
+  </div>
+
+  <div class="content">
+    <div class="stats">
+      <div class="stat">
+        <span class="stat-label">Videos</span>
+        <span class="stat-value" id="videoCount">-</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Ad copies</span>
+        <span class="stat-value" id="adCopiesCount">0</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="folder">Save folder (under Downloads)</label>
+      <input id="folder" class="input" type="text" placeholder="MetaAdLibrary" spellcheck="false">
+      <div class="field-hint">
+        Files save to <code>Downloads/<span id="folderEcho">MetaAdLibrary</span></code>.
+        To change Downloads location: <a id="openSettings">open Chrome download settings</a>.
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">Page</div>
+    <div class="row">
+      <button class="btn btn-secondary" id="autoScroll">📜 Auto-load all</button>
+      <button class="btn btn-secondary" id="activate">⚡ Activate buttons</button>
+    </div>
+
+    <div class="section-label" style="margin-top: 12px;">Download</div>
+    <button class="btn btn-primary" id="downloadAllHD">⬇ Download all HD</button>
+    <button class="btn btn-secondary" id="downloadAllSD">📹 Download all SD</button>
+
+    <div class="section-label" style="margin-top: 12px;">Ad copy</div>
+    <button class="btn btn-secondary" id="exportAdCopies">
+      📋 Export ad copies <span class="badge" id="exportBadge">0</span>
+    </button>
+    <button class="btn btn-ghost" id="clearAdCopies">🗑 Clear saved ad copies</button>
+
+    <div class="status" id="status">Ready</div>
+  </div>
+
+  <div class="footer">JM Studio · v1.3.0</div>
+  <script src="popup.js"></script>
+</body>
+</html>
