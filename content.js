@@ -3,6 +3,8 @@
 
   var SCAN_INTERVAL = 2000;
   var PROCESSED_ATTR = 'data-malvd-processed';
+  var IMG_PROCESSED_ATTR = 'data-malvd-img-processed';
+  var MIN_IMG_DIM = 200;            // px — anything smaller is an icon/avatar
   var hdUrlMap = {};
   var active = false;
   var scanTimer = null;
@@ -90,6 +92,53 @@
     var libId = getLibraryId(cardEl);
     var ts = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
     return 'meta_ad_' + libId + '_' + quality + '_' + ts + '.mp4';
+  }
+
+  function generateImageFilename(cardEl, ext) {
+    var libId = getLibraryId(cardEl);
+    var ts = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+    return 'meta_ad_' + libId + '_image_' + ts + '.' + (ext || 'jpg');
+  }
+
+  // ==================== IMAGE HELPERS ====================
+
+  // Pick the highest-resolution variant from <img srcset="url 1x, url 2x, url 3x">.
+  // Falls back to .src when srcset is empty.
+  function getHighestResImageUrl(imgEl) {
+    var ss = (imgEl.getAttribute('srcset') || '').trim();
+    if (ss) {
+      var best = null, bestDensity = -1;
+      ss.split(',').forEach(function(part) {
+        var bits = part.trim().split(/\s+/);
+        if (!bits[0]) return;
+        var d = 1;
+        if (bits[1]) {
+          if (bits[1].indexOf('w') !== -1) d = parseFloat(bits[1]);          // width descriptor
+          else if (bits[1].indexOf('x') !== -1) d = parseFloat(bits[1]);     // density descriptor
+        }
+        if (!isNaN(d) && d > bestDensity) { bestDensity = d; best = bits[0]; }
+      });
+      if (best) return best;
+    }
+    return imgEl.currentSrc || imgEl.src;
+  }
+
+  function getImageExt(url) {
+    var m = (url || '').split('?')[0].match(/\.(jpe?g|png|webp|gif)$/i);
+    return m ? m[1].toLowerCase().replace('jpeg', 'jpg') : 'jpg';
+  }
+
+  function isAdCreativeImage(imgEl) {
+    if (!imgEl || !imgEl.src) return false;
+    if (imgEl.hasAttribute(IMG_PROCESSED_ATTR)) return false;
+    if (imgEl.offsetWidth < MIN_IMG_DIM || imgEl.offsetHeight < MIN_IMG_DIM) return false;
+    // Skip our own UI
+    var p = imgEl.parentElement;
+    while (p) {
+      if (p.classList && (p.classList.contains('malvd-dropdown-wrapper') || p.classList.contains('malvd-notification'))) return false;
+      p = p.parentElement;
+    }
+    return true;
   }
 
   // ==================== AD COPY EXTRACTION ====================
@@ -348,6 +397,22 @@
     }, silent);
   }
 
+  async function downloadImage(imgEl, silent) {
+    var cardEl = findCardContainer(imgEl);
+    var url = getHighestResImageUrl(imgEl);
+    var ext = getImageExt(url);
+    var filename = generateImageFilename(cardEl, ext);
+    var adCopy = buildAdCopy(cardEl, imgEl, 'IMG');
+    var language = await detectLanguage(adCopy.primary);
+    return doDownload({
+      url: url,
+      filename: filename,
+      libId: getLibraryId(cardEl),
+      language: language,
+      adCopy: adCopy
+    }, silent);
+  }
+
   // ==================== NOTIFICATION ====================
 
   function showNotification(message, type) {
@@ -433,6 +498,36 @@
     return wrapper;
   }
 
+  // ==================== IMAGE BUTTON ====================
+
+  function createImageButton(imgEl) {
+    var wrapper = document.createElement('div');
+    wrapper.className = 'malvd-dropdown-wrapper';
+
+    var mainBtn = document.createElement('button');
+    mainBtn.className = 'malvd-main-btn';
+    mainBtn.style.borderRadius = '6px';
+    mainBtn.innerHTML = '🖼 Download image';
+    mainBtn.addEventListener('click', function(e) {
+      e.preventDefault(); e.stopPropagation();
+      downloadImage(imgEl);
+    });
+
+    wrapper.appendChild(mainBtn);
+    return wrapper;
+  }
+
+  function scanImagesInCard(cardEl, videoEl) {
+    // Return ad-creative images inside this card. Skip ones colocated with the
+    // video (avatars, thumbnails) — those belong to the video flow.
+    var imgs = cardEl.querySelectorAll('img');
+    var creatives = [];
+    for (var i = 0; i < imgs.length; i++) {
+      if (isAdCreativeImage(imgs[i])) creatives.push(imgs[i]);
+    }
+    return creatives;
+  }
+
   // ==================== SCANNER ====================
 
   function scanAndAddButtons() {
@@ -470,11 +565,48 @@
         else inner.appendChild(dropdown);
       }
     });
+
+    // Image-only ad cards: walk all large images and tag the ones that live in
+    // a card without a video attached (video cards already handled above).
+    var imgs = document.querySelectorAll('img');
+    imgs.forEach(function(imgEl) {
+      if (!isAdCreativeImage(imgEl)) return;
+      var cardEl = findCardContainer(imgEl);
+      if (!cardEl) return;
+      if (cardEl.querySelector('video[src]')) return; // skip video cards
+
+      imgEl.setAttribute(IMG_PROCESSED_ATTR, 'true');
+
+      var btn = createImageButton(imgEl);
+      var inner = cardEl.children[0] || cardEl;
+      var headerArea = null;
+      for (var j = 0; j < inner.children.length; j++) {
+        var child = inner.children[j];
+        var text = child.textContent || '';
+        var isDetailsRow = I18N_SEE_DETAILS_TEXTS.some(function(t) { return text.indexOf(t) !== -1; });
+        if (isDetailsRow) { headerArea = child; break; }
+      }
+      if (headerArea) {
+        headerArea.style.display = 'flex';
+        headerArea.style.alignItems = 'center';
+        headerArea.style.gap = '8px';
+        headerArea.style.justifyContent = 'space-between';
+        // Avoid double-injecting if a button is already in this row.
+        if (!headerArea.querySelector('.malvd-dropdown-wrapper')) {
+          headerArea.appendChild(btn);
+        }
+      } else {
+        var firstChild = inner.firstChild;
+        if (firstChild) inner.insertBefore(btn, firstChild.nextSibling);
+        else inner.appendChild(btn);
+      }
+    });
   }
 
   function removeAllButtons() {
     document.querySelectorAll('.malvd-dropdown-wrapper').forEach(function(w) { w.remove(); });
     document.querySelectorAll('[' + PROCESSED_ATTR + ']').forEach(function(v) { v.removeAttribute(PROCESSED_ATTR); });
+    document.querySelectorAll('[' + IMG_PROCESSED_ATTR + ']').forEach(function(v) { v.removeAttribute(IMG_PROCESSED_ATTR); });
   }
 
   // ==================== ACTIVATION ====================
@@ -580,17 +712,39 @@
     setTimeout(function() { if (t && t.isConnected) t.remove(); if (batchToast === t) batchToast = null; }, delay || 2500);
   }
 
+  // Collect image-ad creatives currently rendered. One per image-only card so
+  // we don't grab carousels' duplicates or video-card thumbnails.
+  function collectAdImages() {
+    var seen = {};
+    var out = [];
+    var imgs = document.querySelectorAll('img');
+    imgs.forEach(function(imgEl) {
+      if (imgEl.offsetWidth < MIN_IMG_DIM || imgEl.offsetHeight < MIN_IMG_DIM) return;
+      var cardEl = findCardContainer(imgEl);
+      if (!cardEl) return;
+      if (cardEl.querySelector('video[src]')) return;
+      var libId = getLibraryId(cardEl);
+      if (seen[libId]) return;
+      seen[libId] = true;
+      out.push(imgEl);
+    });
+    return out;
+  }
+
   window.malvdDownloadAll = async function(preferHD) {
     var videos = document.querySelectorAll('video[src]');
-    var total = videos.length;
-    if (!total) { showNotification('⚠️ No videos found', 'warning'); return; }
+    var images = collectAdImages();
+    var totalV = videos.length, totalI = images.length;
+    var total = totalV + totalI;
+    if (!total) { showNotification('⚠️ No videos or images found', 'warning'); return; }
 
     var label = preferHD ? 'HD' : 'SD';
-    showBatchProgress('📦 Preparing ' + total + ' videos (' + label + ')...', 'info');
+    showBatchProgress('📦 Preparing ' + totalV + ' videos + ' + totalI + ' images...', 'info');
 
-    var ok = 0, fail = 0;
-    for (var i = 0; i < total; i++) {
-      showBatchProgress('📦 ' + (i + 1) + '/' + total + ' (' + label + ')...', 'info');
+    var ok = 0, fail = 0, idx = 0;
+    for (var i = 0; i < totalV; i++) {
+      idx++;
+      showBatchProgress('📦 ' + idx + '/' + total + ' video (' + label + ')...', 'info');
       try {
         var r = preferHD
           ? await downloadVideoHD(videos[i], true)
@@ -598,6 +752,16 @@
         if (r && r.success) ok++; else fail++;
       } catch (e) { fail++; }
       await new Promise(function(r) { setTimeout(r, 1200); });
+    }
+
+    for (var k = 0; k < totalI; k++) {
+      idx++;
+      showBatchProgress('📦 ' + idx + '/' + total + ' image...', 'info');
+      try {
+        var r2 = await downloadImage(images[k], true);
+        if (r2 && r2.success) ok++; else fail++;
+      } catch (e2) { fail++; }
+      await new Promise(function(r) { setTimeout(r, 600); });
     }
 
     var summary = '✅ Done: ' + ok + '/' + total + (fail ? ' (' + fail + ' failed)' : '');
@@ -624,7 +788,11 @@
 
   chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     if (request.action === 'getVideoCount') {
-      sendResponse({ count: document.querySelectorAll('video[src]').length, active: active });
+      sendResponse({
+        count: document.querySelectorAll('video[src]').length,
+        imageCount: collectAdImages().length,
+        active: active
+      });
     } else if (request.action === 'activate') {
       activate();
       sendResponse({ active: true });

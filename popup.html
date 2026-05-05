@@ -25,14 +25,14 @@
 
     .content { padding: 14px 18px 16px; }
 
-    .stats { display: flex; gap: 8px; margin-bottom: 12px; }
+    .stats { display: flex; gap: 6px; margin-bottom: 12px; }
     .stat {
       flex: 1; display: flex; flex-direction: column;
-      padding: 9px 12px; background: rgba(255,255,255,0.05);
-      border-radius: 8px;
+      padding: 9px 10px; background: rgba(255,255,255,0.05);
+      border-radius: 8px; min-width: 0;
     }
-    .stat-label { font-size: 10px; color: #8b87a3; text-transform: uppercase; letter-spacing: .5px; }
-    .stat-value { font-size: 18px; font-weight: 700; color: #b69cff; line-height: 1.2; margin-top: 2px; }
+    .stat-label { font-size: 10px; color: #8b87a3; text-transform: uppercase; letter-spacing: .4px; }
+    .stat-value { font-size: 17px; font-weight: 700; color: #b69cff; line-height: 1.2; margin-top: 2px; }
 
     .field { margin-bottom: 10px; }
     .field label {
@@ -106,6 +106,10 @@
         <span class="stat-value" id="videoCount">-</span>
       </div>
       <div class="stat">
+        <span class="stat-label">Images</span>
+        <span class="stat-value" id="imageCount">-</span>
+      </div>
+      <div class="stat">
         <span class="stat-label">Ad copies</span>
         <span class="stat-value" id="adCopiesCount">0</span>
       </div>
@@ -128,7 +132,7 @@
       <button class="btn btn-secondary" id="activate">⚡ Activate buttons</button>
     </div>
 
-    <div class="section-label" style="margin-top: 12px;">Download</div>
+    <div class="section-label" style="margin-top: 12px;">Download (videos + images)</div>
     <button class="btn btn-primary" id="downloadAllHD">⬇ Download all HD</button>
     <button class="btn btn-secondary" id="downloadAllSD">📹 Download all SD</button>
 
@@ -141,7 +145,7 @@
     <div class="status" id="status">Ready</div>
   </div>
 
-  <div class="footer">JM Studio · v1.4.0</div>
+  <div class="footer">JM Studio · v1.5.0</div>
   <script src="popup.js"></script>
 </body>
 </html>

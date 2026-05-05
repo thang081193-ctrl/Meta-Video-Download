@@ -36,6 +36,7 @@ function sendBg(msg) {
 document.addEventListener('DOMContentLoaded', async function() {
   var $ = function(id) { return document.getElementById(id); };
   var videoCountEl = $('videoCount');
+  var imageCountEl = $('imageCount');
   var adCopiesCountEl = $('adCopiesCount');
   var exportBadge = $('exportBadge');
   var statusEl = $('status');
@@ -71,10 +72,11 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
 
   async function refreshVideoCount() {
-    if (!onAdLibrary) { videoCountEl.textContent = '0'; return; }
+    if (!onAdLibrary) { videoCountEl.textContent = '0'; imageCountEl.textContent = '0'; return; }
     var r = await send(tab.id, { action: 'getVideoCount' });
-    if (!r) { videoCountEl.textContent = '?'; return; }
+    if (!r) { videoCountEl.textContent = '?'; imageCountEl.textContent = '?'; return; }
     videoCountEl.textContent = r.count;
+    imageCountEl.textContent = (r.imageCount != null) ? r.imageCount : '0';
   }
 
   function reflectActivated() {
@@ -125,8 +127,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     var r = await send(tab.id, { action: 'autoScroll' });
     autoScrollBtn.disabled = false;
     if (r && r.count !== undefined) {
-      videoCountEl.textContent = r.count;
       statusEl.textContent = '✅ Loaded ' + r.count + ' videos';
+      refreshVideoCount();
     } else {
       statusEl.textContent = '⚠️ Reload the page';
     }
