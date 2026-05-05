@@ -352,12 +352,12 @@
     return new Promise(function(resolve) {
       chrome.runtime.sendMessage(Object.assign({ action: 'downloadVideo' }, payload), function(response) {
         if (response && response.success) {
-          if (!silent) showNotification('✅ Downloading: ' + payload.filename, 'success');
+          if (!silent) showNotification('✅ Saved: ' + payload.filename, 'success');
         } else {
-          if (!silent) {
-            showNotification('⚠️ Opening in new tab...', 'warning');
-            window.open(payload.url, '_blank');
-          }
+          // No new-tab fallback — silent in batch, error toast in single mode.
+          var err = (response && response.error) || 'Download failed';
+          console.warn('[MALVD] Download failed for', payload.filename, err);
+          if (!silent) showNotification('⚠️ ' + err, 'error');
         }
         resolve(response);
       });

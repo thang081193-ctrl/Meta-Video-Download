@@ -1,4 +1,4 @@
-var DEFAULTS = { folder: 'MetaAdLibrary', activated: false };
+var DEFAULTS = { folder: 'MetaAdLibrary', activated: false, alertDismissed: false };
 
 function loadSettings() {
   return new Promise(function(resolve) {
@@ -107,6 +107,19 @@ document.addEventListener('DOMContentLoaded', async function() {
   openSettingsLink.addEventListener('click', function(e) {
     e.preventDefault();
     chrome.tabs.create({ url: 'chrome://settings/downloads' });
+  });
+
+  // Save-As dialog warning: dismiss persists across popup opens.
+  var dialogAlert = $('dialogAlert');
+  var openDownloadSettingsBtn = $('openDownloadSettings');
+  var dismissAlertBtn = $('dismissAlert');
+  if (settings.alertDismissed) dialogAlert.classList.add('dismissed');
+  openDownloadSettingsBtn.addEventListener('click', function() {
+    chrome.tabs.create({ url: 'chrome://settings/downloads' });
+  });
+  dismissAlertBtn.addEventListener('click', function() {
+    dialogAlert.classList.add('dismissed');
+    saveSetting('alertDismissed', true);
   });
 
   activateBtn.addEventListener('click', async function() {

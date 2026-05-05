@@ -53,6 +53,26 @@
     .field-hint a { color: #b69cff; text-decoration: none; cursor: pointer; }
     .field-hint a:hover { text-decoration: underline; }
 
+    .alert {
+      display: flex; gap: 9px; align-items: flex-start;
+      padding: 10px 11px; margin-bottom: 12px;
+      background: rgba(255, 152, 0, 0.10);
+      border: 1px solid rgba(255, 152, 0, 0.35);
+      border-radius: 8px;
+      font-size: 11px; color: #ffd49a; line-height: 1.45;
+    }
+    .alert-icon { font-size: 14px; line-height: 1.1; flex-shrink: 0; }
+    .alert-body { flex: 1; min-width: 0; }
+    .alert-body strong { color: #ffb74d; font-weight: 600; display: block; margin-bottom: 3px; }
+    .alert-body button {
+      margin-top: 6px; padding: 5px 10px; font-size: 10px; font-weight: 600;
+      background: rgba(255, 152, 0, 0.18); color: #ffd49a;
+      border: 1px solid rgba(255, 152, 0, 0.4);
+      border-radius: 5px; cursor: pointer; font-family: inherit;
+    }
+    .alert-body button:hover { background: rgba(255, 152, 0, 0.30); color: #fff; }
+    .alert.dismissed { display: none; }
+
     .btn {
       display: flex; align-items: center; justify-content: center;
       gap: 6px;
@@ -100,6 +120,16 @@
   </div>
 
   <div class="content">
+    <div class="alert" id="dialogAlert">
+      <div class="alert-icon">⚠️</div>
+      <div class="alert-body">
+        <strong>Seeing a "Save As" popup for every file?</strong>
+        Disable <em>"Ask where to save each file before downloading"</em> in Chrome settings, then files save silently to the chosen folder.
+        <button id="openDownloadSettings">Open Chrome download settings</button>
+        <button id="dismissAlert" style="background:transparent;border-color:rgba(255,152,0,0.25);">Got it</button>
+      </div>
+    </div>
+
     <div class="stats">
       <div class="stat">
         <span class="stat-label">Videos</span>
@@ -145,7 +175,7 @@
     <div class="status" id="status">Ready</div>
   </div>
 
-  <div class="footer">JM Studio · v1.5.0</div>
+  <div class="footer">JM Studio · v1.5.1</div>
   <script src="popup.js"></script>
 </body>
 </html>
