@@ -57,6 +57,23 @@ async function recordAdCopy(entry) {
   await saveAdCopies(list);
 }
 
+function buildSingleAdText(e) {
+  return [
+    'Library ID: ' + (e.libId || 'unknown'),
+    'Quality: ' + (e.quality || ''),
+    'Language: ' + (e.language || 'Unknown'),
+    'Saved: ' + (e.savedAt || ''),
+    'Source: ' + (e.sourceUrl || ''),
+    '',
+    'PRIMARY TEXT:',
+    e.primary || '(none)',
+    '',
+    'HEADLINE / CTA:',
+    e.headline || '(none)',
+    ''
+  ].join('\n');
+}
+
 function buildExportText(list) {
   var stamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
   var head = [
@@ -100,7 +117,7 @@ async function handleDownload(request) {
     });
 
     if (request.adCopy) {
-      await recordAdCopy({
+      var entry = {
         libId: request.adCopy.libId,
         quality: request.adCopy.quality,
         primary: request.adCopy.primary,
@@ -108,6 +125,17 @@ async function handleDownload(request) {
         language: lang,
         savedAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
         sourceUrl: request.adCopy.sourceUrl
+      };
+      await recordAdCopy(entry);
+
+      // Save a per-video TXT alongside the video so it lands in the same language folder.
+      var txtName = request.filename.replace(/\.[^.\/]+$/, '') + '.txt';
+      var txtPath = folder + '/' + lang + '/' + txtName;
+      await startDownload({
+        url: textToDataUrl(buildSingleAdText(entry)),
+        filename: txtPath,
+        saveAs: false,
+        conflictAction: 'uniquify'
       });
     }
 

@@ -299,48 +299,53 @@
 
   // ==================== DOWNLOAD ====================
 
-  function doDownload(payload) {
-    chrome.runtime.sendMessage(Object.assign({ action: 'downloadVideo' }, payload), function(response) {
-      if (response && response.success) {
-        showNotification('✅ Downloading: ' + payload.filename, 'success');
-      } else {
-        showNotification('⚠️ Opening in new tab...', 'warning');
-        window.open(payload.url, '_blank');
-      }
+  function doDownload(payload, silent) {
+    return new Promise(function(resolve) {
+      chrome.runtime.sendMessage(Object.assign({ action: 'downloadVideo' }, payload), function(response) {
+        if (response && response.success) {
+          if (!silent) showNotification('✅ Downloading: ' + payload.filename, 'success');
+        } else {
+          if (!silent) {
+            showNotification('⚠️ Opening in new tab...', 'warning');
+            window.open(payload.url, '_blank');
+          }
+        }
+        resolve(response);
+      });
     });
   }
 
-  async function downloadVideoHD(videoEl) {
+  async function downloadVideoHD(videoEl, silent) {
     var cardEl = findCardContainer(videoEl);
-    showNotification('⏳ Switching to HD...', 'info');
+    if (!silent) showNotification('⏳ Switching to HD...', 'info');
     var hdUrl = await getHDUrl(videoEl);
     var quality = getVideoQuality(videoEl);
     var filename = generateFilename(cardEl, quality);
     var adCopy = buildAdCopy(cardEl, videoEl, quality);
     var language = await detectLanguage(adCopy.primary);
-    doDownload({
+    return doDownload({
       url: hdUrl,
       filename: filename,
       libId: getLibraryId(cardEl),
       language: language,
       adCopy: adCopy
-    });
+    }, silent);
   }
 
-  async function downloadVideoSD(videoEl) {
+  async function downloadVideoSD(videoEl, silent) {
     var cardEl = findCardContainer(videoEl);
     var quality = getVideoQuality(videoEl);
     var res = getVideoResolution(videoEl);
     var filename = generateFilename(cardEl, quality + (res ? '_' + res : ''));
     var adCopy = buildAdCopy(cardEl, videoEl, quality);
     var language = await detectLanguage(adCopy.primary);
-    doDownload({
+    return doDownload({
       url: videoEl.src,
       filename: filename,
       libId: getLibraryId(cardEl),
       language: language,
       adCopy: adCopy
-    });
+    }, silent);
   }
 
   // ==================== NOTIFICATION ====================
@@ -548,19 +553,56 @@
 
   // ==================== DOWNLOAD ALL ====================
 
+  // Single sticky progress toast that updates in place during batch downloads.
+  var batchToast = null;
+  function showBatchProgress(message, type) {
+    type = type || 'info';
+    var colors = { success: '#00c853', warning: '#ff9800', error: '#f44336', info: '#6a3fbf' };
+    if (!batchToast || !batchToast.isConnected) {
+      batchToast = document.createElement('div');
+      batchToast.className = 'malvd-notification malvd-batch-toast';
+      batchToast.style.cssText = [
+        'position:fixed', 'top:20px', 'right:20px', 'z-index:999999',
+        'padding:12px 24px', 'color:white', 'border-radius:8px',
+        'font-size:14px', 'font-weight:600',
+        'box-shadow:0 4px 12px rgba(0,0,0,0.3)', 'animation:malvd-slideIn 0.3s ease',
+        'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif',
+        'min-width:220px', 'text-align:center'
+      ].join(';');
+      document.body.appendChild(batchToast);
+    }
+    batchToast.style.background = colors[type] || colors.info;
+    batchToast.textContent = message;
+  }
+  function hideBatchProgress(delay) {
+    var t = batchToast;
+    if (!t) return;
+    setTimeout(function() { if (t && t.isConnected) t.remove(); if (batchToast === t) batchToast = null; }, delay || 2500);
+  }
+
   window.malvdDownloadAll = async function(preferHD) {
     var videos = document.querySelectorAll('video[src]');
     var total = videos.length;
-    showNotification('📦 Starting download of ' + total + ' videos...', 'info');
+    if (!total) { showNotification('⚠️ No videos found', 'warning'); return; }
 
+    var label = preferHD ? 'HD' : 'SD';
+    showBatchProgress('📦 Preparing ' + total + ' videos (' + label + ')...', 'info');
+
+    var ok = 0, fail = 0;
     for (var i = 0; i < total; i++) {
-      showNotification('📦 Video ' + (i + 1) + '/' + total + (preferHD ? ' (HD)' : ' (SD)') + '...', 'info');
-      if (preferHD) await downloadVideoHD(videos[i]);
-      else await downloadVideoSD(videos[i]);
-      await new Promise(function(r) { setTimeout(r, 2000); });
+      showBatchProgress('📦 ' + (i + 1) + '/' + total + ' (' + label + ')...', 'info');
+      try {
+        var r = preferHD
+          ? await downloadVideoHD(videos[i], true)
+          : await downloadVideoSD(videos[i], true);
+        if (r && r.success) ok++; else fail++;
+      } catch (e) { fail++; }
+      await new Promise(function(r) { setTimeout(r, 1200); });
     }
 
-    showNotification('✅ All ' + total + ' videos queued!', 'success');
+    var summary = '✅ Done: ' + ok + '/' + total + (fail ? ' (' + fail + ' failed)' : '');
+    showBatchProgress(summary, fail ? 'warning' : 'success');
+    hideBatchProgress(4000);
   };
 
   // ==================== INIT ====================
