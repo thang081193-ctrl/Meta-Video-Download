@@ -86,6 +86,8 @@
     .btn-primary { background: linear-gradient(135deg, #6a3fbf 0%, #3b1f7a 100%); }
     .btn-secondary { background: rgba(255,255,255,0.08); color: #c9c5dc; }
     .btn-secondary:hover:not(:disabled) { background: rgba(255,255,255,0.13); color: #fff; }
+    .btn-danger { background: linear-gradient(135deg, #d33b3b 0%, #8a1f1f 100%); }
+    .btn-danger:hover:not(:disabled) { filter: brightness(1.15); }
     .btn-ghost { background: transparent; color: #6c6883; font-size: 11px; padding: 8px; }
     .btn-ghost:hover:not(:disabled) { color: #b69cff; }
     .btn .badge {
@@ -165,6 +167,7 @@
     <div class="section-label" style="margin-top: 12px;">Download (videos + images)</div>
     <button class="btn btn-primary" id="downloadAllHD">⬇ Download all HD</button>
     <button class="btn btn-secondary" id="downloadAllSD">📹 Download all SD</button>
+    <button class="btn btn-danger" id="stopBatch" disabled>🛑 Stop downloading</button>
 
     <div class="section-label" style="margin-top: 12px;">Ad copy</div>
     <button class="btn btn-secondary" id="exportAdCopies">
@@ -175,7 +178,7 @@
     <div class="status" id="status">Ready</div>
   </div>
 
-  <div class="footer">JM Studio · v1.5.1</div>
+  <div class="footer">JM Studio · v1.6.0</div>
   <script src="popup.js"></script>
 </body>
 </html>

@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   var autoScrollBtn = $('autoScroll');
   var downloadAllHDBtn = $('downloadAllHD');
   var downloadAllSDBtn = $('downloadAllSD');
+  var stopBatchBtn = $('stopBatch');
   var exportBtn = $('exportAdCopies');
   var clearBtn = $('clearAdCopies');
 
@@ -60,6 +61,19 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   function setPageDisabled(disabled) {
     [activateBtn, autoScrollBtn, downloadAllHDBtn, downloadAllSDBtn].forEach(function(b) { b.disabled = disabled; });
+    stopBatchBtn.disabled = true;
+  }
+
+  function reflectBatchState(running) {
+    downloadAllHDBtn.disabled = running;
+    downloadAllSDBtn.disabled = running;
+    stopBatchBtn.disabled = !running;
+  }
+
+  async function refreshBatchState() {
+    if (!onAdLibrary) return;
+    var r = await send(tab.id, { action: 'getBatchState' });
+    if (r) reflectBatchState(!!r.running);
   }
 
   async function refreshAdCopiesCount() {
@@ -94,6 +108,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   refreshAdCopiesCount();
   refreshVideoCount();
+  refreshBatchState();
 
   // ---------- handlers ----------
 
@@ -149,6 +164,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   downloadAllHDBtn.addEventListener('click', async function() {
     statusEl.textContent = '⏳ Downloading all HD...';
+    reflectBatchState(true);
     var r = await send(tab.id, { action: 'downloadAll', preferHD: true });
     if (r && r.started) statusEl.textContent = '🚀 HD downloads started';
     setTimeout(refreshAdCopiesCount, 3000);
@@ -156,9 +172,17 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   downloadAllSDBtn.addEventListener('click', async function() {
     statusEl.textContent = '⏳ Downloading all SD...';
+    reflectBatchState(true);
     var r = await send(tab.id, { action: 'downloadAll', preferHD: false });
     if (r && r.started) statusEl.textContent = '🚀 SD downloads started';
     setTimeout(refreshAdCopiesCount, 3000);
+  });
+
+  stopBatchBtn.addEventListener('click', async function() {
+    stopBatchBtn.disabled = true;
+    statusEl.textContent = '🛑 Stopping after current item...';
+    var r = await send(tab.id, { action: 'stopBatch' });
+    if (!r || !r.stopped) statusEl.textContent = '⚠️ No batch running';
   });
 
   exportBtn.addEventListener('click', async function() {
@@ -176,6 +200,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     refreshAdCopiesCount();
   });
 
-  // Refresh counts whenever popup is opened/refocused
-  setInterval(refreshAdCopiesCount, 2000);
+  // Refresh counts + batch state whenever popup is opened/refocused
+  setInterval(function() { refreshAdCopiesCount(); refreshBatchState(); }, 2000);
 });

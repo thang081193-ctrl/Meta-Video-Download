@@ -9,6 +9,8 @@
   var active = false;
   var scanTimer = null;
   var bodyObserver = null;
+  var batchStopRequested = false;
+  var batchRunning = false;
 
   // i18n: supported text variants (English + Vietnamese)
   var I18N_SETTINGS_LABELS = ['Settings', 'Cài đặt'];
@@ -731,41 +733,63 @@
     return out;
   }
 
+  window.malvdStopBatch = function() {
+    if (!batchRunning) return false;
+    batchStopRequested = true;
+    showBatchProgress('🛑 Stopping after current item...', 'warning');
+    return true;
+  };
+
   window.malvdDownloadAll = async function(preferHD) {
+    if (batchRunning) { showNotification('⚠️ A batch is already running', 'warning'); return; }
     var videos = document.querySelectorAll('video[src]');
     var images = collectAdImages();
     var totalV = videos.length, totalI = images.length;
     var total = totalV + totalI;
     if (!total) { showNotification('⚠️ No videos or images found', 'warning'); return; }
 
+    batchRunning = true;
+    batchStopRequested = false;
     var label = preferHD ? 'HD' : 'SD';
     showBatchProgress('📦 Preparing ' + totalV + ' videos + ' + totalI + ' images...', 'info');
 
-    var ok = 0, fail = 0, idx = 0;
-    for (var i = 0; i < totalV; i++) {
-      idx++;
-      showBatchProgress('📦 ' + idx + '/' + total + ' video (' + label + ')...', 'info');
-      try {
-        var r = preferHD
-          ? await downloadVideoHD(videos[i], true)
-          : await downloadVideoSD(videos[i], true);
-        if (r && r.success) ok++; else fail++;
-      } catch (e) { fail++; }
-      await new Promise(function(r) { setTimeout(r, 1200); });
+    var ok = 0, fail = 0, idx = 0, stopped = false;
+    try {
+      for (var i = 0; i < totalV; i++) {
+        if (batchStopRequested) { stopped = true; break; }
+        idx++;
+        showBatchProgress('📦 ' + idx + '/' + total + ' video (' + label + ')...', 'info');
+        try {
+          var r = preferHD
+            ? await downloadVideoHD(videos[i], true)
+            : await downloadVideoSD(videos[i], true);
+          if (r && r.success) ok++; else fail++;
+        } catch (e) { fail++; }
+        if (batchStopRequested) { stopped = true; break; }
+        await new Promise(function(r) { setTimeout(r, 1200); });
+      }
+
+      if (!stopped) {
+        for (var k = 0; k < totalI; k++) {
+          if (batchStopRequested) { stopped = true; break; }
+          idx++;
+          showBatchProgress('📦 ' + idx + '/' + total + ' image...', 'info');
+          try {
+            var r2 = await downloadImage(images[k], true);
+            if (r2 && r2.success) ok++; else fail++;
+          } catch (e2) { fail++; }
+          if (batchStopRequested) { stopped = true; break; }
+          await new Promise(function(r) { setTimeout(r, 600); });
+        }
+      }
+    } finally {
+      batchRunning = false;
+      batchStopRequested = false;
     }
 
-    for (var k = 0; k < totalI; k++) {
-      idx++;
-      showBatchProgress('📦 ' + idx + '/' + total + ' image...', 'info');
-      try {
-        var r2 = await downloadImage(images[k], true);
-        if (r2 && r2.success) ok++; else fail++;
-      } catch (e2) { fail++; }
-      await new Promise(function(r) { setTimeout(r, 600); });
-    }
-
-    var summary = '✅ Done: ' + ok + '/' + total + (fail ? ' (' + fail + ' failed)' : '');
-    showBatchProgress(summary, fail ? 'warning' : 'success');
+    var prefix = stopped ? '🛑 Stopped' : '✅ Done';
+    var summary = prefix + ': ' + ok + '/' + total + (fail ? ' (' + fail + ' failed)' : '');
+    showBatchProgress(summary, stopped ? 'warning' : (fail ? 'warning' : 'success'));
     hideBatchProgress(4000);
   };
 
@@ -801,7 +825,12 @@
       sendResponse({ active: false });
     } else if (request.action === 'downloadAll') {
       window.malvdDownloadAll(request.preferHD !== false);
-      sendResponse({ started: true });
+      sendResponse({ started: true, running: batchRunning });
+    } else if (request.action === 'stopBatch') {
+      var ok = window.malvdStopBatch();
+      sendResponse({ stopped: ok, running: batchRunning });
+    } else if (request.action === 'getBatchState') {
+      sendResponse({ running: batchRunning });
     } else if (request.action === 'rescan') {
       scanAndAddButtons();
       sendResponse({ done: true });

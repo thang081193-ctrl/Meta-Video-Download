@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Meta Ad Library Video Downloader",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "Download videos and images from Meta Ad Library in HD/SD/highest-res, auto-load all media, sort into language folders, and export ad copy (headline + primary text).",
   "permissions": ["activeTab", "downloads", "storage"],
   "host_permissions": [
